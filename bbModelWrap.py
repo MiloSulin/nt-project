@@ -6,6 +6,7 @@ lib_name = "./lib/libBBnetworkModel"
 platform_name = pf.system()
 lib_n_full = False
 
+# ladataan oikea kirjasto riippuen käyttöjärjestelmästä
 if platform_name == "Windows":
     lib_name += "Windows.dll"
     lib_n_full = True
@@ -18,11 +19,31 @@ elif platform_name == "Darwin":
     print("-Karl Marx")
 
 if lib_n_full:
+    # ladataan C++ koodilla tehty kirjasto binääri ja määritetään sen sisältämän funktion palatusarvon ja argumenttien tyypit
     bb_lib = CDLL(lib_name)
     bb_lib.generateBianconiBarabasiPy.restype = None
     bb_lib.generateBianconiBarabasiPy.argtypes = (c_int32, c_int32, c_char_p, c_double, POINTER(c_int32), POINTER(c_int32), POINTER(c_double))
 
-def generateBianconiBarabasi(v_amount:int, e_amount:int, beta_constant:float, distr_type:str) -> tuple[dict, list]:
+def generateBianconiBarabasi(v_amount:int=10, e_amount:int=2, beta_constant:float=1.0, distr_type:str="uniform") -> tuple[dict, list]:
+    """ 
+    Funktio, joka kutsuu jaetun kirjaston libBBnetworkModel C funktiota generateBianconiBarabasiPy funktiota. Funktio generoi Bianconi-Barabasi mallin mukaisen
+    verkoston ja palauttaa sen tuottaman datan muodossa, jota voidaan suoraan käyttää ulkopuolisen NetworkX kirjaston kanssa. Bianconi-Barabasi verkoston solmuilla
+    on olennaisena ominaisuutena asteen lisäksi laatu (fitness), joka vaikuttaa sen kykyyn luoda yhteyksiä uusien solmujen kanssa.
+    
+    INPUT:
+    v_amount - int, solmujen (vertex) määrä, joka halutaan generoida; oletusarvo = 10
+    e_amount - int, suorien (edge) määrä, jonka jokainen uusi solmu luo verkostoon; oletusarvo = 2
+    beta_constant - float, Bose-Einstein kondensaatti verkoston luomista varten määritettävä vakio, joka muutetaan c_double tyypiksi; oletusarvo = 1.0
+    distr_type - str, Solmujen laadun määrittämiseen käytettävän jakauman tyyppi:
+            'uniform': tasaisesti satunnainen, arvo väliltä (0,1)
+            'BEC': Bose-Einstein kondensaatin luova eksponentiaalinen jakauma, arvo exp(-beta_constant * energia)
+                   ja muuttuja energia arvotaan väliltä (0,1) jakauman (theta+1)/(energia_max^(theta+1))*energia^(theta) mukaan
+            ; oletusarvo = 'uniform'
+    
+    OUTPUT:
+    vertex_fit_dict - Python dict, sisältää tiedon verkoston solmuista muodossa {int_t nimi : float_t laatu}
+    edge_list - Python list, sisältää tiedon verkoston suorista muodossa [[alku1, loppu1], [alku2, loppu2],...]
+    """
     edges_in_total = (10 + (v_amount-10)*e_amount)
     edge_array_c_1 = (c_int32 * (edges_in_total) )() # C tyyppinen yksiuloitteinen array, joka sisältää suorien ensimmäisen pään omaavan solmun nimen
     edge_array_c_2 = (c_int32 * (edges_in_total) )() # C tyyppinen yksiuloitteinen array, joka sisältää suorien toisen pään omaavan solmun nimen
@@ -37,7 +58,7 @@ def generateBianconiBarabasi(v_amount:int, e_amount:int, beta_constant:float, di
     edge_arr_py2 = np.ndarray((edges_in_total, ), 'i', edge_array_c_2, order='C')
     vertex_arr_py = np.ndarray((v_amount, ), 'd', fit_array_c, order='C')
     # yhdistetään verkoston suorien päät siten, että networkx pystyy ne lukemaan
-    edge_arr_combined = np.column_stack((edge_arr_py1, edge_arr_py2)) # np.array() yhdistää suorien päiden tiedot kaksi riviseksi matriisiksi, .T transponoi matriisin siten, että jokainen suora on matriisissa parina
+    edge_arr_combined = np.column_stack((edge_arr_py1, edge_arr_py2)) # yhdistetään suorien alku- ja loppupäät yhteen matriisiin siten, että yhden suoran tiedot ovat yhdellä rivillä
     # edge_arr_combined = np.array((edge_arr_py1, edge_arr_py2)).T
     edge_list = edge_arr_combined.tolist()
 
