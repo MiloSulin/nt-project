@@ -14,9 +14,11 @@ elif platform_name == "Linux":
     lib_name += "Linux.so"
     lib_n_full = True
 elif platform_name == "Darwin":
-    print("Valitettavasti Apple laitteet eivät ole tuettuja. Ja kirjastoa ei voitu ladata.")
-    print("Capitalist production, therefore, develops technology, and the combining together of various processes into a social whole,\nonly by sapping the original sources of all wealth-the soil and the labourer.")
-    print("-Karl Marx")
+    lib_name += "Darwin.dylib"
+    lib_n_full = True
+    # print("Valitettavasti Apple laitteet eivät ole tuettuja. Ja kirjastoa ei voitu ladata.")
+    # print("Capitalist production, therefore, develops technology, and the combining together of various processes into a social whole,\nonly by sapping the original sources of all wealth-the soil and the labourer.")
+    # print("-Karl Marx")
 
 if lib_n_full:
     # ladataan C++ koodilla tehty kirjasto binääri ja määritetään sen sisältämän funktion palatusarvon ja argumenttien tyypit
@@ -65,6 +67,7 @@ def generateBianconiBarabasi(v_amount:int=10, e_amount:int=2, beta_constant:floa
     # muutetaan solmujen array dict muotoon siten, että jokaisen solmun avain on sen nimi (indeksi)
     vertex_fit_dict = dict(enumerate(vertex_arr_py))
 
+    # poistetaan välivaiheiden muuttujat muistista
     del edge_array_c_1
     del edge_array_c_2
     del fit_array_c
