@@ -1,30 +1,28 @@
 import numpy as np
 import platform as pf
+import os
 from ctypes import *
 
-lib_name = "./lib/libBBnetworkModel"
+current_path = os.path.dirname(__file__)
+
+lib_path = current_path + "/lib/libBBnetworkModel"
 platform_name = pf.system()
-lib_n_full = False
 
 # ladataan oikea kirjasto riippuen käyttöjärjestelmästä
 if platform_name == "Windows":
-    lib_name += "Windows.dll"
-    lib_n_full = True
+    lib_path += "Windows.dll"
 elif platform_name == "Linux":
-    lib_name += "Linux.so"
-    lib_n_full = True
+    lib_path += "Linux.so"
 elif platform_name == "Darwin":
-    lib_name += "Darwin.dylib"
-    lib_n_full = True
-    # print("Valitettavasti Apple laitteet eivät ole tuettuja. Ja kirjastoa ei voitu ladata.")
+    lib_path += "Darwin.dylib"
+    # print("Valitettavasti Apple laitteet eivät ole tuettuja ja kirjastoa ei voitu ladata.")
     # print("Capitalist production, therefore, develops technology, and the combining together of various processes into a social whole,\nonly by sapping the original sources of all wealth-the soil and the labourer.")
     # print("-Karl Marx")
 
-if lib_n_full:
-    # ladataan C++ koodilla tehty kirjasto binääri ja määritetään sen sisältämän funktion palatusarvon ja argumenttien tyypit
-    bb_lib = CDLL(lib_name)
-    bb_lib.generateBianconiBarabasiPy.restype = None
-    bb_lib.generateBianconiBarabasiPy.argtypes = (c_int32, c_int32, c_char_p, c_double, POINTER(c_int32), POINTER(c_int32), POINTER(c_double))
+# ladataan C++ koodilla tehty kirjasto binääri ja määritetään sen sisältämän funktion palatusarvon ja argumenttien tyypit
+bb_lib = CDLL(lib_path)
+bb_lib.generateBianconiBarabasiPy.restype = None
+bb_lib.generateBianconiBarabasiPy.argtypes = (c_int32, c_int32, c_char_p, c_double, POINTER(c_int32), POINTER(c_int32), POINTER(c_double))
 
 def generateBianconiBarabasi(v_amount:int=10, e_amount:int=2, beta_constant:float=1.0, distr_type:str="uniform") -> tuple[dict, list]:
     """ 
@@ -46,6 +44,7 @@ def generateBianconiBarabasi(v_amount:int=10, e_amount:int=2, beta_constant:floa
     vertex_fit_dict - Python dict, sisältää tiedon verkoston solmuista muodossa {int_t nimi : float_t laatu}
     edge_list - Python list, sisältää tiedon verkoston suorista muodossa [[alku1, loppu1], [alku2, loppu2],...]
     """
+
     edges_in_total = (10 + (v_amount-10)*e_amount)
     edge_array_c_1 = (c_int32 * (edges_in_total) )() # C tyyppinen yksiuloitteinen array, joka sisältää suorien ensimmäisen pään omaavan solmun nimen
     edge_array_c_2 = (c_int32 * (edges_in_total) )() # C tyyppinen yksiuloitteinen array, joka sisältää suorien toisen pään omaavan solmun nimen
@@ -59,20 +58,22 @@ def generateBianconiBarabasi(v_amount:int=10, e_amount:int=2, beta_constant:floa
     edge_arr_py1 = np.ndarray((edges_in_total, ), 'i', edge_array_c_1, order='C')
     edge_arr_py2 = np.ndarray((edges_in_total, ), 'i', edge_array_c_2, order='C')
     vertex_arr_py = np.ndarray((v_amount, ), 'd', fit_array_c, order='C')
+
+    # poistetaan C tyyppi arrayt, koska tiedot ovat nyt numpy array muuttujissa
+    del edge_array_c_1
+    del edge_array_c_2
+    del fit_array_c
+    
     # yhdistetään verkoston suorien päät siten, että networkx pystyy ne lukemaan
     edge_arr_combined = np.column_stack((edge_arr_py1, edge_arr_py2)) # yhdistetään suorien alku- ja loppupäät yhteen matriisiin siten, että yhden suoran tiedot ovat yhdellä rivillä
     # edge_arr_combined = np.array((edge_arr_py1, edge_arr_py2)).T
     edge_list = edge_arr_combined.tolist()
-
     # muutetaan solmujen array dict muotoon siten, että jokaisen solmun avain on sen nimi (indeksi)
     vertex_fit_dict = dict(enumerate(vertex_arr_py))
 
-    # poistetaan välivaiheiden muuttujat muistista
-    del edge_array_c_1
-    del edge_array_c_2
-    del fit_array_c
+    # poistetaan numpy arrayt, koska tiedot ovat nyt täysin Python tietorakenteissa kopioituina
     del edge_arr_combined
     del vertex_arr_py
-
+    
     # palautetaan simuloidun verkoston tiedot
     return vertex_fit_dict, edge_list
